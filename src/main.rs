@@ -26,7 +26,8 @@ async fn main() -> std::io::Result<()> {
             // Static files (serve index.html for all unmatched routes for SPA)
             .service(Files::new("/", "./static").index_file("index.html"))
     })
-    .bind("127.0.0.1:8080")?
+    // .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }
