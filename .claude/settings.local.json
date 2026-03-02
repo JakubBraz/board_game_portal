@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build:*)",
+      "Bash(curl:*)",
+      "Bash(python:*)",
+      "Bash(tasklist:*)",
+      "Bash(kill:*)",
+      "Bash(taskkill:*)",
+      "Bash(cargo check:*)",
+      "Bash(sed:*)"
+    ]
+  }
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Board Games Portal</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">♟</span>
+        <span class="logo-text">BoardPortal</span>
+      </div>
+      <nav class="nav">
+        <a href="/" class="nav-link active">Home</a>
+        <a href="/lobby.html" class="nav-link">Lobby</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <h1 class="hero-title">Classic Board Games</h1>
+        <p class="hero-subtitle">Challenge a friend in real-time across four timeless strategy games</p>
+        <a href="/lobby.html" class="btn btn-primary btn-lg">Browse Games</a>
+      </div>
+      <div class="hero-pieces" aria-hidden="true">
+        <span>♔</span><span>♛</span><span>♜</span><span>♝</span>
+        <span>●</span><span>○</span><span>◉</span><span>◎</span>
+      </div>
+    </section>
+
+    <section class="games-section">
+      <h2 class="section-title">Available Games</h2>
+      <div class="games-grid">
+        <div class="game-card" onclick="openGame('chess')">
+          <div class="game-card-icon chess-icon">♟</div>
+          <h3>Chess</h3>
+          <p>The classic game of strategy. Full rules including castling, en passant, and promotion.</p>
+          <div class="game-card-meta">
+            <span class="badge">2 Players</span>
+            <span class="badge">8×8 Board</span>
+          </div>
+          <button class="btn btn-primary" onclick="event.stopPropagation(); openGame('chess')">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="openGame('checkers')">
+          <div class="game-card-icon checkers-icon">●</div>
+          <h3>Checkers</h3>
+          <p>American checkers with mandatory captures, multi-jumps, and kinging.</p>
+          <div class="game-card-meta">
+            <span class="badge">2 Players</span>
+            <span class="badge">8×8 Board</span>
+          </div>
+          <button class="btn btn-primary" onclick="event.stopPropagation(); openGame('checkers')">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="openGame('go')">
+          <div class="game-card-icon go-icon">○</div>
+          <h3>Go</h3>
+          <p>Ancient Chinese strategy game. Capture territory on a 19×19 grid with Ko and territory scoring.</p>
+          <div class="game-card-meta">
+            <span class="badge">2 Players</span>
+            <span class="badge">19×19 Board</span>
+          </div>
+          <button class="btn btn-primary" onclick="event.stopPropagation(); openGame('go')">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="openGame('gomoku')">
+          <div class="game-card-icon gomoku-icon">◉</div>
+          <h3>Gomoku</h3>
+          <p>Five in a row! Place stones on a 15×15 grid and be the first to align five.</p>
+          <div class="game-card-meta">
+            <span class="badge">2 Players</span>
+            <span class="badge">15×15 Board</span>
+          </div>
+          <button class="btn btn-primary" onclick="event.stopPropagation(); openGame('gomoku')">Play Now</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="how-it-works">
+      <h2 class="section-title">How to Play</h2>
+      <div class="steps-grid">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h4>Choose a Game</h4>
+          <p>Pick from Chess, Checkers, Go, or Gomoku.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <h4>Create or Join</h4>
+          <p>Create a new room or join an existing game in the lobby.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <h4>Share the Link</h4>
+          <p>Send the game link to your opponent.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <h4>Play!</h4>
+          <p>Moves are synchronized in real-time via WebSocket.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Board Games Portal &mdash; Built with Rust &amp; Actix-Web</p>
+  </footer>
+
+  <script>
+    function openGame(type) {
+      window.location.href = `/lobby.html?game=${type}`;
+    }
+  </script>
+</body>
+</html>

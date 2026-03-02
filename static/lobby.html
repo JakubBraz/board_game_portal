@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lobby — Board Games Portal</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <a href="/" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:0.5rem">
+          <span class="logo-icon">♟</span>
+          <span class="logo-text">BoardPortal</span>
+        </a>
+      </div>
+      <nav class="nav">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/lobby.html" class="nav-link active">Lobby</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="lobby-main">
+    <div class="lobby-container">
+      <div class="lobby-header">
+        <h1>Game Lobby</h1>
+        <p class="lobby-subtitle">Create a new game or join an existing one</p>
+      </div>
+
+      <div class="lobby-create">
+        <h2>Create New Game</h2>
+        <div class="create-form">
+          <div class="game-type-selector" id="gameTypeSelector">
+            <button class="game-type-btn active" data-type="chess">♟ Chess</button>
+            <button class="game-type-btn" data-type="checkers">● Checkers</button>
+            <button class="game-type-btn" data-type="go">○ Go</button>
+            <button class="game-type-btn" data-type="gomoku">◉ Gomoku</button>
+          </div>
+          <div class="vs-mode-row">
+            <div class="vs-mode-toggle" id="vsModeToggle">
+              <button class="vs-mode-btn active" id="vsHumanBtn">👤 vs Human</button>
+              <button class="vs-mode-btn" id="vsComputerBtn">🤖 vs Computer</button>
+            </div>
+            <div id="difficultySelector" class="difficulty-selector hidden">
+              <button class="difficulty-btn" data-difficulty="easy">Easy</button>
+              <button class="difficulty-btn active" data-difficulty="normal">Normal</button>
+              <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-lg" id="createRoomBtn">Create Room</button>
+        </div>
+      </div>
+
+      <div class="lobby-rooms">
+        <div class="rooms-header">
+          <h2>Open Games</h2>
+          <button class="btn btn-secondary" id="refreshBtn" title="Refresh">↻ Refresh</button>
+        </div>
+        <div id="roomsList" class="rooms-list">
+          <div class="loading">Loading rooms…</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>Board Games Portal &mdash; Built with Rust &amp; Actix-Web</p>
+  </footer>
+
+  <script src="/js/lobby.js"></script>
+</body>
+</html>
