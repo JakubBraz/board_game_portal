@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use super::{AiDifficulty, GameLogic, GameStatus, GameType, PlayerColor};
@@ -61,6 +62,7 @@ pub struct ChessGame {
     pub full_move_number: u32,
     pub status: GameStatus,
     pub last_move: Option<(usize, usize, usize, usize)>,
+    pub position_history: HashMap<String, u8>,
 }
 
 impl ChessGame {
@@ -87,7 +89,7 @@ impl ChessGame {
             board[6][col] = Some(Piece { piece_type: PieceType::Pawn, color: Color::Black });
         }
 
-        ChessGame {
+        let mut game = ChessGame {
             board,
             current_turn: Color::White,
             castling: CastlingRights {
@@ -101,7 +103,11 @@ impl ChessGame {
             full_move_number: 1,
             status: GameStatus::Playing,
             last_move: None,
-        }
+            position_history: HashMap::new(),
+        };
+        let key = game.position_key();
+        game.position_history.insert(key, 1);
+        game
     }
 
     fn piece_at(&self, row: usize, col: usize) -> Option<Piece> {
@@ -373,6 +379,44 @@ impl ChessGame {
             }
         }
         false
+    }
+
+    fn position_key(&self) -> String {
+        let mut key = String::with_capacity(72);
+        for row in 0..8 {
+            for col in 0..8 {
+                key.push(match self.board[row][col] {
+                    None => '.',
+                    Some(p) => match (p.piece_type, p.color) {
+                        (PieceType::King,   Color::White) => 'K',
+                        (PieceType::Queen,  Color::White) => 'Q',
+                        (PieceType::Rook,   Color::White) => 'R',
+                        (PieceType::Bishop, Color::White) => 'B',
+                        (PieceType::Knight, Color::White) => 'N',
+                        (PieceType::Pawn,   Color::White) => 'P',
+                        (PieceType::King,   Color::Black) => 'k',
+                        (PieceType::Queen,  Color::Black) => 'q',
+                        (PieceType::Rook,   Color::Black) => 'r',
+                        (PieceType::Bishop, Color::Black) => 'b',
+                        (PieceType::Knight, Color::Black) => 'n',
+                        (PieceType::Pawn,   Color::Black) => 'p',
+                    },
+                });
+            }
+        }
+        key.push(if self.current_turn == Color::White { 'w' } else { 'b' });
+        key.push(if self.castling.white_king_side  { 'K' } else { '-' });
+        key.push(if self.castling.white_queen_side { 'Q' } else { '-' });
+        key.push(if self.castling.black_king_side  { 'k' } else { '-' });
+        key.push(if self.castling.black_queen_side { 'q' } else { '-' });
+        match self.en_passant {
+            None => key.push_str("--"),
+            Some((r, c)) => {
+                key.push((b'a' + c as u8) as char);
+                key.push((b'1' + r as u8) as char);
+            }
+        }
+        key
     }
 
     fn board_to_json(&self) -> Value {
@@ -692,6 +736,16 @@ impl GameLogic for ChessGame {
                 };
             } else {
                 // Stalemate
+                self.status = GameStatus::Draw;
+            }
+        }
+
+        // Threefold repetition
+        if self.status == GameStatus::Playing {
+            let key = self.position_key();
+            let count = self.position_history.entry(key).or_insert(0);
+            *count += 1;
+            if *count >= 3 {
                 self.status = GameStatus::Draw;
             }
         }
