@@ -97,6 +97,12 @@
     };
 
     ws.onclose = () => {
+      if (!myColor && connectionRetries < 5) {
+        // Connection closed before player was identified — retry silently
+        const delay = Math.min(2000, 200 * Math.pow(2, connectionRetries++));
+        wsReconnectTimer = setTimeout(connectWS, delay);
+        return;
+      }
       if (gameState && gameState.status === 'playing') {
         addChat('system', 'Disconnected. Reconnecting…');
         const delay = Math.min(5000, 1000 * Math.pow(2, connectionRetries++));
@@ -118,6 +124,7 @@
         myColor = msg.color;
         vsComputer = msg.vs_computer || false;
         aiDifficulty = msg.ai_difficulty || null;
+        connectionRetries = 0;
         setupPlayer(myColor, msg.room_status);
         break;
 
@@ -256,7 +263,7 @@
     }
 
     // Move history
-    if (s.move_count !== undefined) {
+    if (s.move_count !== undefined || s.last_move != null) {
       addMoveToHistory(s);
     }
 
@@ -386,7 +393,6 @@
 
   // ── Actions ────────────────────────────────────────────────────────────────
   function resign() {
-    if (!confirm('Are you sure you want to resign?')) return;
     send({ type: 'resign' });
   }
 

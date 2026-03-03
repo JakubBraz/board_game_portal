@@ -210,7 +210,7 @@ pub async fn ws_handler(
 
         // Clean up sender on disconnect
         let mut st = state_clone.lock().await;
-        if let Some(room) = st.rooms.get_mut(&room_id_clone) {
+        let should_remove = if let Some(room) = st.rooms.get_mut(&room_id_clone) {
             match color {
                 PlayerColor::White => room.white_sender = None,
                 PlayerColor::Black => room.black_sender = None,
@@ -223,6 +223,13 @@ pub async fn ws_handler(
                 },
             }).to_string();
             room.broadcast(&msg);
+            // Remove the room if no active connections remain
+            room.white_sender.is_none() && room.black_sender.is_none()
+        } else {
+            false
+        };
+        if should_remove {
+            st.rooms.remove(&room_id_clone);
         }
     });
 
