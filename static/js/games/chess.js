@@ -13,6 +13,8 @@ window.ChessGame = (function () {
   let myColor = null;
   let onMove = null;
   let promotionPending = null;
+  // dragState: { fromRow, fromCol, startX, startY, curX, curY, isDragging, legalMoves, wasSelected }
+  let dragState = null;
 
   const COLORS = {
     light: '#f0d9b5',
@@ -24,12 +26,17 @@ window.ChessGame = (function () {
     check: 'rgba(220,30,30,0.55)',
   };
 
+  const DRAG_THRESHOLD = 6;
+
   function init(canvasEl, color, moveCallback) {
     canvas = canvasEl;
     ctx = canvas.getContext('2d');
     myColor = color;
     onMove = moveCallback;
     canvas.addEventListener('click', handleClick);
+    canvas.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
     resize();
     window.addEventListener('resize', resize);
   }
@@ -45,21 +52,24 @@ window.ChessGame = (function () {
     return canvas.width / 8;
   }
 
-  function toDisplay(row, col) {
-    // White plays at bottom (row 0 = rank 1 = displayed at bottom)
-    if (myColor === 'white') {
-      return { dr: 7 - row, dc: col };
-    } else {
-      return { dr: row, dc: 7 - col };
-    }
-  }
-
   function fromDisplay(dr, dc) {
     if (myColor === 'white') {
       return { row: 7 - dr, col: dc };
     } else {
       return { row: dr, col: 7 - dc };
     }
+  }
+
+  function getSquareFromXY(x, y) {
+    const sq = squareSize();
+    const dc = Math.max(0, Math.min(7, Math.floor(x / sq)));
+    const dr = Math.max(0, Math.min(7, Math.floor(y / sq)));
+    return fromDisplay(dr, dc);
+  }
+
+  function getEventXY(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
   function render(s) {
@@ -98,12 +108,10 @@ window.ChessGame = (function () {
         if (isLegal) {
           const piece = s.board[row][col];
           if (piece) {
-            // Capture: ring
             ctx.strokeStyle = COLORS.legalCapture;
             ctx.lineWidth = sq * 0.1;
             ctx.strokeRect(x + sq * 0.05, y + sq * 0.05, sq * 0.9, sq * 0.9);
           } else {
-            // Move: dot
             ctx.fillStyle = COLORS.legalMove;
             ctx.beginPath();
             ctx.arc(x + sq / 2, y + sq / 2, sq * 0.15, 0, Math.PI * 2);
@@ -119,7 +127,7 @@ window.ChessGame = (function () {
       }
     }
 
-    // Draw pieces
+    // Draw pieces (skip origin square while actively dragging)
     ctx.font = `${sq * 0.8}px serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -127,16 +135,28 @@ window.ChessGame = (function () {
       for (let c = 0; c < 8; c++) {
         const { row, col } = fromDisplay(r, c);
         const piece = s.board[row][col];
-        if (piece) {
-          const glyph = PIECE_UNICODE[piece.color][piece.type];
-          const x = c * sq + sq / 2;
-          const y = r * sq + sq / 2;
-          // Shadow for contrast
-          ctx.fillStyle = piece.color === 'white' ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.15)';
-          ctx.fillText(glyph, x + 1, y + 1);
-          ctx.fillStyle = piece.color === 'white' ? '#fff' : '#1a1a1a';
-          ctx.fillText(glyph, x, y);
-        }
+        if (!piece) continue;
+        if (dragState && dragState.isDragging && row === dragState.fromRow && col === dragState.fromCol) continue;
+        const glyph = PIECE_UNICODE[piece.color][piece.type];
+        const x = c * sq + sq / 2;
+        const y = r * sq + sq / 2;
+        ctx.fillStyle = piece.color === 'white' ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.15)';
+        ctx.fillText(glyph, x + 1, y + 1);
+        ctx.fillStyle = piece.color === 'white' ? '#fff' : '#1a1a1a';
+        ctx.fillText(glyph, x, y);
+      }
+    }
+
+    // Ghost piece follows cursor during drag
+    if (dragState && dragState.isDragging) {
+      const piece = s.board[dragState.fromRow][dragState.fromCol];
+      if (piece) {
+        const glyph = PIECE_UNICODE[piece.color][piece.type];
+        ctx.font = `${sq * 0.9}px serif`;
+        ctx.fillStyle = piece.color === 'white' ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.15)';
+        ctx.fillText(glyph, dragState.curX + 1, dragState.curY + 1);
+        ctx.fillStyle = piece.color === 'white' ? '#fff' : '#1a1a1a';
+        ctx.fillText(glyph, dragState.curX, dragState.curY);
       }
     }
 
@@ -144,65 +164,136 @@ window.ChessGame = (function () {
     ctx.font = `${sq * 0.22}px monospace`;
     const files = 'abcdefgh';
     for (let i = 0; i < 8; i++) {
-      const { row, col } = fromDisplay(7, i);
-      const file = files[col];
+      const { col } = fromDisplay(7, i);
       ctx.fillStyle = i % 2 === 0 ? COLORS.dark : COLORS.light;
       ctx.textAlign = 'right';
-      ctx.fillText(file, (i + 1) * sq - 2, 7 * sq + sq - 3);
+      ctx.fillText(files[col], (i + 1) * sq - 2, 7 * sq + sq - 3);
     }
     for (let i = 0; i < 8; i++) {
       const { row } = fromDisplay(i, 0);
-      const rank = row + 1;
       ctx.fillStyle = i % 2 === 0 ? COLORS.light : COLORS.dark;
       ctx.textAlign = 'left';
-      ctx.fillText(rank, 2, i * sq + 3 + sq * 0.22);
+      ctx.fillText(row + 1, 2, i * sq + 3 + sq * 0.22);
     }
   }
 
+  // ── Mouse handlers ──────────────────────────────────────────────────────────
+
+  function handleMouseDown(e) {
+    if (!state || state.status !== 'playing') return;
+    if (state.current_turn !== myColor) return;
+    if (e.button !== 0) return;
+
+    const { x, y } = getEventXY(e);
+    const { row, col } = getSquareFromXY(x, y);
+    const piece = state.board[row]?.[col];
+    if (!piece || piece.color !== myColor) return;
+
+    // Remember if this piece was already selected (for toggle on click-release)
+    const wasSelected = !!(selectedSquare && selectedSquare[0] === row && selectedSquare[1] === col);
+
+    // Select immediately — shows legal move hints on press, visible during drag too
+    selectSquare(row, col);
+
+    dragState = { fromRow: row, fromCol: col, startX: x, startY: y, curX: x, curY: y, isDragging: false, legalMoves: legalMovesForSelected, wasSelected };
+    render(state);
+    e.preventDefault();
+  }
+
+  function handleMouseMove(e) {
+    if (!dragState) return;
+    const { x, y } = getEventXY(e);
+    dragState.curX = x;
+    dragState.curY = y;
+    if (!dragState.isDragging) {
+      const dx = x - dragState.startX;
+      const dy = y - dragState.startY;
+      if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+        dragState.isDragging = true;
+      }
+    }
+    if (dragState.isDragging) render(state);
+  }
+
+  function handleMouseUp(e) {
+    if (!dragState) return;
+    const ds = dragState;
+    dragState = null;
+
+    if (!ds.isDragging) {
+      // Click (no meaningful movement): toggle off if the piece was already selected
+      if (ds.wasSelected) {
+        selectedSquare = null;
+        legalMovesForSelected = [];
+      }
+      // Otherwise selection is already showing from mousedown — nothing to do
+      render(state);
+      return;
+    }
+
+    // Real drag — complete or cancel
+    const { x, y } = getEventXY(e);
+    const { row, col } = getSquareFromXY(x, y);
+
+    if (row === ds.fromRow && col === ds.fromCol) {
+      // Dropped back on origin — keep selection (already shown)
+      render(state);
+      return;
+    }
+
+    if (ds.legalMoves.some(([mr, mc]) => mr === row && mc === col)) {
+      const piece = state.board[ds.fromRow][ds.fromCol];
+      const promotionRow = myColor === 'white' ? 7 : 0;
+      if (piece && piece.type === 'pawn' && row === promotionRow) {
+        promotionPending = { from: [ds.fromRow, ds.fromCol], to: [row, col] };
+        showPromotionDialog();
+        render(state);
+        return;
+      }
+      sendMove(ds.fromRow, ds.fromCol, row, col, null);
+    }
+    // Dropped on invalid square — selection stays cleared, no preview
+    render(state);
+  }
+
+  // Handles clicks on non-own squares: legal move destinations, empty squares, opponent pieces
   function handleClick(e) {
     if (!state || state.status !== 'playing') return;
     if (state.current_turn !== myColor) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const sq = squareSize();
-    const dc = Math.floor(x / sq);
-    const dr = Math.floor(y / sq);
-    const { row, col } = fromDisplay(dr, dc);
+    const { x, y } = getEventXY(e);
+    const { row, col } = getSquareFromXY(x, y);
+    const piece = state.board[row]?.[col];
 
-    if (selectedSquare) {
+    // Own-piece clicks are fully handled by mousedown/mouseup
+    if (piece && piece.color === myColor) return;
+
+    if (!selectedSquare) { render(state); return; }
+
+    if (legalMovesForSelected.some(([mr, mc]) => mr === row && mc === col)) {
       const [selR, selC] = selectedSquare;
-      if (legalMovesForSelected.some(([mr, mc]) => mr === row && mc === col)) {
-        // Check if pawn promotion
-        const piece = state.board[selR][selC];
-        const promotionRow = myColor === 'white' ? 7 : 0;
-        if (piece && piece.type === 'pawn' && row === promotionRow) {
-          promotionPending = { from: [selR, selC], to: [row, col] };
-          showPromotionDialog();
-          return;
-        }
-        sendMove(selR, selC, row, col, null);
+      const selPiece = state.board[selR][selC];
+      const promotionRow = myColor === 'white' ? 7 : 0;
+      if (selPiece && selPiece.type === 'pawn' && row === promotionRow) {
+        promotionPending = { from: [selR, selC], to: [row, col] };
+        showPromotionDialog();
         selectedSquare = null;
         legalMovesForSelected = [];
-      } else {
-        // Select different piece or deselect
-        const piece = state.board[row][col];
-        if (piece && piece.color === myColor) {
-          selectSquare(row, col);
-        } else {
-          selectedSquare = null;
-          legalMovesForSelected = [];
-        }
+        render(state);
+        return;
       }
+      sendMove(selR, selC, row, col, null);
+      selectedSquare = null;
+      legalMovesForSelected = [];
     } else {
-      const piece = state.board[row][col];
-      if (piece && piece.color === myColor) {
-        selectSquare(row, col);
-      }
+      // Clicked empty or non-legal opponent square — deselect
+      selectedSquare = null;
+      legalMovesForSelected = [];
     }
     render(state);
   }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
 
   function selectSquare(row, col) {
     selectedSquare = [row, col];
@@ -215,11 +306,7 @@ window.ChessGame = (function () {
 
   function sendMove(fromR, fromC, toR, toC, promotion) {
     if (onMove) {
-      onMove({
-        from: [fromR, fromC],
-        to: [toR, toC],
-        promotion: promotion,
-      });
+      onMove({ from: [fromR, fromC], to: [toR, toC], promotion });
     }
   }
 
@@ -245,29 +332,24 @@ window.ChessGame = (function () {
   function update(s) {
     selectedSquare = null;
     legalMovesForSelected = [];
+    dragState = null;
     render(s);
   }
 
   function getCapturedPieces(s) {
     const initial = { queen: 1, rook: 2, bishop: 2, knight: 2, pawn: 8, king: 1 };
-    const counts = { white: {}, black: {} };
     const onBoard = { white: {}, black: {} };
-
     for (const row of s.board) {
       for (const piece of row) {
-        if (piece) {
-          onBoard[piece.color][piece.type] = (onBoard[piece.color][piece.type] || 0) + 1;
-        }
+        if (piece) onBoard[piece.color][piece.type] = (onBoard[piece.color][piece.type] || 0) + 1;
       }
     }
-
+    const counts = { white: {}, black: {} };
     for (const color of ['white', 'black']) {
       for (const [type, count] of Object.entries(initial)) {
         if (type === 'king') continue;
         const lost = count - (onBoard[color][type] || 0);
-        if (lost > 0) {
-          counts[color][type] = lost;
-        }
+        if (lost > 0) counts[color][type] = lost;
       }
     }
     return counts;
@@ -283,7 +365,7 @@ window.ChessGame = (function () {
     }
     if (s.status === 'white_won') return myColor === 'white' ? 'You won!' : 'Opponent won';
     if (s.status === 'black_won') return myColor === 'black' ? 'You won!' : 'Opponent won';
-    if (s.status === 'draw') return 'Draw (Stalemate)';
+    if (s.status === 'draw') return 'Draw';
     return '';
   }
 
